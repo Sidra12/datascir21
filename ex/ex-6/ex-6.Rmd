@@ -42,21 +42,21 @@ c. Create a scatterplot for `parenting_style` vs. `tv`. Describe the bivariate r
 (Just qualitatively, without using any measures.)
 
 ```{r 1a}
-
+summary(cha)
 ```
 
 ```{r 1b, fig.width=8}
 cha %>%
   pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
-ggplot(aes(_____)) +
-  geom______() +
-  _____(~ _____)
+ggplot(aes(value)) +
+  geom_histogram() +
+  facet_wrap(~variable)
 ```
 
 
 ```{r 1c}
-ggplot(cha, aes(x = _____, y = _____)) +
-  geom_____(alpha = .75)
+ggplot(cha, aes(x = parenting_style, y = tv)) +
+  geom_point(alpha = .75)
 ```
 
 ## Task 2
@@ -66,8 +66,16 @@ b. Interpret the coefficients between `aggression` and each of the other variabl
 c. For simple linear regression, the square of the Pearson correlation coefficient equals the coefficient of determination, i.e., $\rho^2 = R^2$. How much variability of `aggression` is explained by the explanatory variable that yields highest $R^2$?
 
 ```{r 2-a}
-cor_df <- corrr::correlate(_____) # output as data frame
+library(corrr)
+cor_df <- corrr::correlate(cha) # output as data frame
 cor_df
+
+library(corrplot)
+
+corrplot(cor(cha),
+  method = "number",
+  type = "upper" # show only upper side
+)
 ```
 
 ```{r 2-b}
@@ -80,7 +88,7 @@ cor_df %>%
 cor_df %>%
   select(term, aggression) %>%
   arrange(desc(aggression)) %>%
-  mutate(r_squared = _____)
+  mutate(r_squared = aggression^2)
 ```
 
 ## Task 3
@@ -89,9 +97,9 @@ Create a multiple linear regression model $M_1$ with `aggression` as response an
 Interpret each of the three model coefficients.
 
 ```{r 3}
-m1 <- _____() %>%
-  set_engine(_____) %>%
-  fit(_____ ~ _____ + _____, data = _____) 
+m1 <- linear_reg() %>%
+  set_engine("lm") %>%
+  fit(aggression~ parenting_style + sibling_aggression, data = cha) 
 m1 %>% tidy()
 ```
 
@@ -101,9 +109,9 @@ Create a multiple linear regression model $M_2$ with `aggression` as response an
 Which predictor is most important? Which is least important?
 
 ```{r 4}
-m2 <- _____() %>%
-  set_engine(_____) %>%
-  fit(_____ ~ _____, data = _____) 
+m2 <- linear_reg() %>%
+  set_engine("lm") %>%
+  fit(aggression~ parenting_style + sibling_aggression + diet + tv + video_games, data = cha) 
 m2 %>% tidy()
 ```
   
@@ -113,8 +121,8 @@ Compare $M_1$ and $M_2$ with respect to $R^2$ and Adjusted $R^2$.
 Which of the two models should we select?
 
 ```{r 5}
-m1 %>% _____() 
-m2 %>% _____() 
+m1 %>%summary(m1) 
+m2 %>% summary(m2)
 ```
 
 ## Task 6
@@ -126,10 +134,10 @@ In other words, remove the variable(s) from the regression equation with `p.valu
 b. Compare $M_2$ and $M_3$ with respect to Adjusted $R^2$. 
 
 ```{r 6-a}
-m3 <- _____() %>%
-  set_engine(_____) %>%
-  fit(_____ ~ _____, data = _____ %>% select(_____)) 
-m3 %>% tidy()
+#m3 <- _____() %>%
+#  set_engine(_____) %>%
+#  fit(_____ ~ _____, data = _____ %>% select(_____)) 
+#m3 %>% tidy()
 ```
 
 ```{r 6-b}
@@ -148,10 +156,10 @@ augmented_model <- augment(m2$fit, cha)
 augmented_model
 augmented_model %>%
   pivot_longer(cols = tv:parenting_style) %>%
-  ggplot(aes(_____, _____)) +
-  geom_point(aes(color = _____), alpha = 0.5) +
-  facet_wrap(~ _____, scales = "free_x") +
-  scale_color_viridis_c(option = "inferno", direction = -1) 
+#  ggplot(aes(_____, _____)) +
+#  geom_point(aes(color = _____), alpha = 0.5) +
+#  facet_wrap(~ _____, scales = "free_x") +
+#  scale_color_viridis_c(option = "inferno", direction = -1) 
 ```
 
 ## Task 8
@@ -160,7 +168,7 @@ For the second model, how many observations have a standardized residuum of grea
 
 ```{r}
 augmented_model %>%
-  filter(_____) %>%
+#  filter(_____) %>%
   nrow()
 ```
 
@@ -190,7 +198,36 @@ wf_final %>%
   tidy()
 ```
 
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(openintro)
+babies <- openintro::babies %>%
+  drop_na() %>% # remove observations with missing values
+  mutate(bwt = 28.3495 * bwt) %>% # ounces to grams
+  mutate(weight = 0.453592 * weight) # pounds to kilograms
+
+linear_reg() %>%
+  set_engine("lm") %>%
+  fit(weight ~ ., data = babies %>% select(-case)) %>% pluck("fit") %>%
+  augment(babies) -> Output
+view(Output)
+
+library(tidyverse)
+library(tidymodels)
+babies <- openintro::babies %>% 
+  drop_na() %>% # remove observations with missing values
+  mutate(bwt = 28.3495 * bwt) %>% # ounces to grams
+  mutate(weight = 0.453592 * weight) # pounds to kilograms
+
+linear_reg() %>%
+  set_engine("lm") %>%
+  fit(bwt ~ age + smoke, data = babies) %>%
+  tidy()
+
+```
 
 ------
 
 Dataset `cha.csv` adapted from: Andy Field, Jeremy Miles, and Zoë Field. [Discovering Statistics Using R](https://studysites.uk.sagepub.com/dsur/main.htm). SAGE Publications, 2012.
+
